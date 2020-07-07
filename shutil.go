@@ -254,7 +254,8 @@ func CopyTree(src, dst string, options *CopyTreeOptions) error {
 	}
 
 	createDst := true
-	_, err = os.Open(dst)
+	var fh *os.File
+	fh, err = os.Open(dst)
 	if !os.IsNotExist(err) {
 		if options.OverlayMode {
 			createDst = false
@@ -262,6 +263,8 @@ func CopyTree(src, dst string, options *CopyTreeOptions) error {
 			return &AlreadyExistsError{dst}
 		}
 	}
+	if err == nil {
+		fh.Close()
 	}
 
 	entries, err := ioutil.ReadDir(src)
