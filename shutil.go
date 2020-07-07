@@ -199,6 +199,7 @@ func Copy(src, dst string, followSymlinks bool) (string, error) {
 type CopyTreeOptions struct {
 	Symlinks               bool
 	IgnoreDanglingSymlinks bool
+	OverlayMode            bool
 	CopyFunction           func(string, string, bool) (string, error)
 	Ignore                 func(string, []os.FileInfo) []string
 }
@@ -238,6 +239,7 @@ func CopyTree(src, dst string, options *CopyTreeOptions) error {
 	if options == nil {
 		options = &CopyTreeOptions{Symlinks: false,
 			Ignore:                 nil,
+			OverlayMode:            false,
 			CopyFunction:           Copy,
 			IgnoreDanglingSymlinks: false}
 	}
@@ -251,9 +253,15 @@ func CopyTree(src, dst string, options *CopyTreeOptions) error {
 		return &NotADirectoryError{src}
 	}
 
+	createDst := true
 	_, err = os.Open(dst)
 	if !os.IsNotExist(err) {
-		return &AlreadyExistsError{dst}
+		if options.OverlayMode {
+			createDst = false
+		} else {
+			return &AlreadyExistsError{dst}
+		}
+	}
 	}
 
 	entries, err := ioutil.ReadDir(src)
@@ -261,9 +269,11 @@ func CopyTree(src, dst string, options *CopyTreeOptions) error {
 		return err
 	}
 
-	err = os.MkdirAll(dst, srcFileInfo.Mode())
-	if err != nil {
-		return err
+	if createDst {
+		err = os.MkdirAll(dst, srcFileInfo.Mode())
+		if err != nil {
+			return err
+		}
 	}
 
 	ignoredNames := []string{}
